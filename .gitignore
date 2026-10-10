@@ -1,1 +1,12 @@
 PLAN.md
+
+# Generated data, trained artifacts and local environments
+dataset/raw/
+dataset/processed/
+model/artifacts/
+model/reports/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
