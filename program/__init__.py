@@ -1,1 +1,1 @@
-"""ECG pipeline shared by notebooks and the presentation app."""
+"""Presentation app and inference runtime; ML workflows live in notebooks."""

@@ -5,11 +5,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from program.common import LABEL_MAP
-from program.data import validate_split, load_partition
-from program.preprocessing import choose_lead, segment
-from program.training import macro_f1, weights_from_train
-from program.evaluation import verify_lock
+from program.inference import LABEL_MAP, choose_lead, segment
+from tests.notebook_support import notebook_definitions
+
+split_definitions = notebook_definitions('dataset/2_Data_split.ipynb')
+training_definitions = notebook_definitions('model/6_Random_forest.ipynb')
+evaluation_definitions = notebook_definitions('model/11_Evaluation_comparison.ipynb')
+validate_split = split_definitions['validate_split']
+load_partition = training_definitions['load_partition']
+macro_f1 = training_definitions['macro_f1']
+weights_from_train = training_definitions['weights_from_train']
+verify_lock = evaluation_definitions['verify_lock']
 
 
 def sample_metadata():
@@ -50,8 +56,7 @@ def test_test_partition_denied_before_read():
 
 
 def test_evaluation_requires_lock(tmp_path, monkeypatch):
-    import program.evaluation as evaluation
-    monkeypatch.setattr(evaluation, 'ARTIFACTS', tmp_path)
+    monkeypatch.setitem(evaluation_definitions, 'ARTIFACTS', tmp_path)
     with pytest.raises(FileNotFoundError):
         verify_lock()
 

@@ -6,7 +6,8 @@ import torch
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 
-from program.models import network, load_model, probabilities
+from program.inference import load_model, probabilities
+from tests.notebook_support import notebook_definitions
 
 
 @pytest.mark.parametrize('kind', ['rf', 'xgb', 'cnn', 'cnn_bilstm'])
@@ -26,7 +27,10 @@ def test_model_save_load_predictions_match(tmp_path, kind):
         model.save_model(tmp_path / 'model.ubj')
     else:
         x = rng.normal(size=(3, 252)).astype(np.float32)
-        model = network(kind, parameters).eval()
+        notebook = '8_CNN' if kind == 'cnn' else '9_CNN_BiLSTM'
+        training = notebook_definitions(f'model/{notebook}.ipynb')
+        # ทดสอบ state_dict ที่สร้างด้วย architecture ใน notebook กับ loader ของ app
+        model = training['network'](kind, parameters).eval()
         # serialization test ของน้ำหนัก ไม่ใช่ training/accuracy test
         torch.save(model.state_dict(), tmp_path / 'model.pt')
     expected = probabilities(model, kind, x)

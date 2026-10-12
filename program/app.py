@@ -11,9 +11,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from program.common import RAW, ARTIFACTS, CLASSES, LABEL_MAP
-from program.preprocessing import beat_samples
-from program.inference import predict_record, STAGES
+from program.inference import (RAW, ARTIFACTS, CLASSES, LABEL_MAP,
+                               read_beats as beat_samples, predict_record, STAGES)
 
 DESCRIPTIONS = {
     'N': 'กลุ่ม N รวม normal และ beat บางประเภท เช่น bundle branch block ไม่ได้หมายความว่าหัวใจปกติทั้งหมด',

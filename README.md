@@ -1,6 +1,6 @@
 # Cardiac Arrhythmia Classification — Cortex
 
-แผนรายละเอียดอยู่ใน [PLAN.md](PLAN.md) โค้ดส่งมอบแบบ **ยังไม่ execute** ไม่มีโมเดลหรือคะแนนทดลองที่สร้างขึ้นแล้ว
+แผนรายละเอียดอยู่ใน [PLAN.md](PLAN.md) ขั้น audit และ split รันตรวจสอบแล้ว มีข้อมูลใน `dataset/processed/` และกราฟใน notebooks 1–2 ส่วน preprocessing, การฝึกโมเดล และ final evaluation ยังไม่ได้รัน
 
 ## Environment
 
@@ -19,7 +19,7 @@ jupyter lab
 ## ลำดับ notebooks
 
 1. `dataset/1_Processing_data.ipynb` — ตรวจ MIT-BIH ใน `dataset/raw/mit-bih-arrhythmia-database-1.0.0/` ต้องมี `RECORDS` และไฟล์ทั้ง 48 records
-2. `dataset/2_Data_split.ipynb` — แบ่งผู้ป่วยครั้งเดียวเป็น Train/Validation/Test
+2. `dataset/2_Data_split.ipynb` — แบ่งผู้ป่วย 37/5/5 คนด้วย constrained optimization; Validation/Test ต้องมี Q ≥ 500 และ F ≥ 20 beats ส่วน Train ต้องมี F/Q อย่างน้อยคลาสละ 500 beats พร้อมตารางและกราฟจาก split ที่บันทึกไว้
 3. `dataset/3_Preprocessing.ipynb` — เตรียม waveform; fit mean/std จาก Train
 4. `dataset/4_Feature_engineering.ipynb` — เตรียม features; fit imputer จาก Train
 5. `model/5_Dummy_baseline.ipynb` — สร้างโมเดลอ้างอิง
@@ -31,6 +31,14 @@ jupyter lab
 ไม่แบ่ง inner validation, ไม่ใช้ cross-validation, ไม่ฝึกซ้ำหลาย seeds และไม่ refit หลัง tuning ตัวแทนแต่ละ configuration ใช้ checkpoint ที่บันทึกจาก baseline/trial เดิม
 
 Artifacts เป็นไฟล์ต่อเนื่องระหว่าง notebooks ไม่ใช่ตัวแปรร่วมใน kernel แต่ละขั้นจะปฏิเสธการเขียนทับผลที่เสร็จแล้ว หลังล็อกโมเดลจะไม่ให้เตรียมข้อมูลหรือฝึกใหม่ใน experiment เดิม หากงานหยุดกลางทางให้ตรวจและเก็บสำรอง directory ของขั้นที่ค้างก่อนเริ่มใหม่ ไม่มีการ resume trials อัตโนมัติ
+
+## ตำแหน่งโค้ด
+
+โค้ดเตรียมข้อมูล ฝึก จูน เลือกโมเดล ประเมิน และ export อยู่ใน notebook ของแต่ละขั้นโดยตรง แต่ละไฟล์มี imports, configuration, helper definitions และ workflow cells ครบ ไม่ต้องเปิด `program/` เพื่ออ่านวิธีฝึก
+
+ใน notebooks ของแต่ละโมเดล แยก section Baseline, Tuning on Validation และ Select and save candidates ให้อ่านและนำเสนอได้ ไม่ใช้ `%run` หรือ import pipeline จาก notebook อื่น
+
+`program/` เหลือ `app.py` สำหรับ UI และ `inference.py` สำหรับโหลด bundle, preprocessing ตอนทำนาย, model architecture และ prediction เท่านั้น (พร้อม `__init__.py`) ส่วน inference คงสำเนาขั้นตอนที่จำเป็นสำหรับแอป; หากแก้สูตร features หรือ architecture ใน notebook ให้ปรับ inference ให้ตรงกัน มี static parity checks และ notebook-to-app serialization tests เตรียมไว้
 
 ## โปรแกรมนำเสนอ
 
@@ -50,6 +58,8 @@ python -m streamlit run program/app.py
 python -m pytest tests -q
 ```
 
-คำสั่งทั้งหมดด้านบนเป็นขั้นตอนสำหรับผู้ใช้ ยังไม่ได้รันในการส่งมอบครั้งนี้ ไม่มีการติดตั้ง dependencies, execute notebook, ฝึกโมเดล หรือเปิด app
+ขั้น audit และ split รันแล้ว พร้อมตรวจเงื่อนไขจำนวนคลาส การแยกผู้ป่วย และ split manifest โดยยังไม่ได้ฝึกโมเดลหรือเปิด app ให้เริ่มขั้นถัดไปที่ `dataset/3_Preprocessing.ipynb`
 
 ก่อนรายงานผล ให้รัน smoke test ของทั้งสี่โมเดล ตรวจ save/load predictions ตรงกัน ตรวจ preprocessing จาก Train เท่านั้น และเปรียบเทียบโหมดเวลาจริง/นำเสนอโดยใช้ input เดียวกัน
+
+Tests ที่ตรวจฟังก์ชันใน notebooks อ่านเฉพาะ imports, constants และ definitions ผ่าน AST ไม่ execute workflow cells หรือฝึกกับ MIT-BIH ส่วน serialization tests ใช้ข้อมูลสังเคราะห์ขนาดเล็กเมื่อผู้ใช้สั่ง pytest เอง
