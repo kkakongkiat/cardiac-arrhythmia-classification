@@ -130,7 +130,7 @@ def network(kind, parameters):
 
 def load_model(folder, info, device='cpu'):
     kind = info['kind']
-    if kind in ['rf', 'dummy']:
+    if kind == 'rf':
         return joblib.load(folder / 'model.joblib')
     if kind == 'xgb':
         model = xgb.Booster()
@@ -141,7 +141,7 @@ def load_model(folder, info, device='cpu'):
     return model.to(device).eval()
 
 def probabilities(model, kind, values, device='cpu', batch_size=128):
-    if kind in ['rf', 'dummy']:
+    if kind == 'rf':
         output = np.zeros((len(values), 5), dtype=np.float32)
         output[:, np.asarray(model.classes_, dtype=int)] = model.predict_proba(values)
         return output

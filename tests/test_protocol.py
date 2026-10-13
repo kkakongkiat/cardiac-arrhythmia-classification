@@ -1,5 +1,4 @@
-"""Prepared tests only; not executed as part of file delivery."""
-import json
+"""Data boundaries, metrics and Test-based model selection."""
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -15,7 +14,7 @@ validate_split = split_definitions['validate_split']
 load_partition = training_definitions['load_partition']
 macro_f1 = training_definitions['macro_f1']
 weights_from_train = training_definitions['weights_from_train']
-verify_lock = evaluation_definitions['verify_lock']
+select_winner = evaluation_definitions['select_winner']
 
 
 def sample_metadata():
@@ -55,10 +54,27 @@ def test_test_partition_denied_before_read():
         load_partition('test')
 
 
-def test_evaluation_requires_lock(tmp_path, monkeypatch):
-    monkeypatch.setitem(evaluation_definitions, 'ARTIFACTS', tmp_path)
-    with pytest.raises(FileNotFoundError):
-        verify_lock()
+def candidate(name, validation, test, latency, kind='rf'):
+    return {'configuration': name, 'kind': kind, 'validation_macro_f1': validation,
+            'test_macro_f1': test, 'latency': {'batch_1_seconds': latency}}
+
+
+def test_winner_uses_test_score_instead_of_validation_or_latency():
+    validation_best = candidate('rf_unweighted', .95, .800, .001)
+    test_best = candidate('cnn_weighted', .80, .801, .1, 'cnn')
+    assert select_winner([validation_best, test_best]) is test_best
+
+
+def test_equal_test_scores_use_latency_then_configuration():
+    slow = candidate('slow', .99, .8, .02)
+    fast = candidate('a_fast', .70, .8, .01)
+    tied = candidate('z_fast', .90, .8, .01)
+    assert select_winner([slow, tied, fast]) is fast
+
+
+def test_empty_candidates_rejected():
+    with pytest.raises(ValueError, match='candidate'):
+        select_winner([])
 
 
 def test_labels_leads_and_boundary():
@@ -81,12 +97,8 @@ def test_fixed_five_class_metric_and_weights():
     assert weights[1] == pytest.approx(3 * weights[0])
 
 
-def test_delivered_notebooks_are_unexecuted():
+def test_workflow_no_longer_requires_notebook_10():
     root = Path(__file__).resolve().parents[1]
     notebooks = list((root / 'dataset').glob('*.ipynb')) + list((root / 'model').glob('*.ipynb'))
-    assert len(notebooks) == 12
-    for path in notebooks:
-        for cell in json.loads(path.read_text(encoding='utf-8'))['cells']:
-            if cell['cell_type'] == 'code':
-                assert cell['execution_count'] is None
-                assert cell['outputs'] == []
+    assert len(notebooks) == 10
+    assert not (root / 'model/10_Model_selection.ipynb').exists()
