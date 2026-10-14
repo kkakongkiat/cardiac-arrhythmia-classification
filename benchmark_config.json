@@ -1,0 +1,47 @@
+{
+  "protocol": "de_chazal_2004_subject_corrected_four_class_v2",
+  "reference_doi": "10.1109/TBME.2004.827359",
+  "raw_directory": "C:/Users/Kongkiat/Documents/Project/cardiac-arrhythmia-classification/dataset/raw/mit-bih-arrhythmia-database-1.0.0",
+  "classes": [
+    "N",
+    "S",
+    "V",
+    "F"
+  ],
+  "excluded_records": [
+    "102",
+    "104",
+    "107",
+    "217"
+  ],
+  "test_records": [
+    "100",
+    "103",
+    "105",
+    "111",
+    "113",
+    "117",
+    "121",
+    "123",
+    "200",
+    "210",
+    "212",
+    "213",
+    "214",
+    "219",
+    "221",
+    "222",
+    "228",
+    "231",
+    "232",
+    "233",
+    "234"
+  ],
+  "validation_fraction_of_development": 0.2,
+  "seed": 42,
+  "left_samples": 90,
+  "right_samples": 180,
+  "offline_context": true,
+  "normalization": "per_record_std_and_per_beat_zscore",
+  "filter": "median_200ms_600ms_then_zero_phase_lowpass_35Hz"
+}

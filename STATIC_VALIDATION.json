@@ -1,0 +1,64 @@
+{
+  "notebooks": [
+    {
+      "file": "dataset\\1_Processing_data.ipynb",
+      "code_cells": 3,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "dataset\\2_Data_split.ipynb",
+      "code_cells": 3,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "dataset\\3_Preprocessing.ipynb",
+      "code_cells": 4,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "dataset\\4_Feature_engineering.ipynb",
+      "code_cells": 3,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "model\\5_Random_forest.ipynb",
+      "code_cells": 11,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "model\\6_XGBoost.ipynb",
+      "code_cells": 11,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "model\\7_CNN.ipynb",
+      "code_cells": 11,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "model\\8_CNN_BiLSTM.ipynb",
+      "code_cells": 11,
+      "syntax": "passed",
+      "unexecuted": true
+    },
+    {
+      "file": "model\\9_Evaluation_comparison.ipynb",
+      "code_cells": 6,
+      "syntax": "passed",
+      "unexecuted": true
+    }
+  ],
+  "baseline_search_space_consistency": "passed",
+  "training_evaluation_architecture_parity": "passed",
+  "training_workflow_test_access_check": "passed",
+  "test_cohort_static_check": "passed",
+  "tests_syntax": "passed",
+  "execution_status": "No preprocessing, notebook execution, model training or runtime tests performed."
+}
