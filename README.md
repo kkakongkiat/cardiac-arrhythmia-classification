@@ -1,62 +1,104 @@
-# Cardiac Arrhythmia Classification — Cortex
+﻿# Cortex — การจำแนกการเต้นของหัวใจจากสัญญาณ ECG
 
-โปรเจคจำแนก ECG ราย heartbeat จาก MIT-BIH เป็น 4 คลาส **N / S / V / F** ด้วย Random Forest, XGBoost, CNN และ CNN–BiLSTM
+โครงงานนี้ศึกษาการใช้ Machine Learning และ Deep Learning เพื่อจำแนกการเต้นของหัวใจจากสัญญาณคลื่นไฟฟ้าหัวใจ (ECG) โดยเปรียบเทียบโมเดล 4 แบบ ได้แก่ **Random Forest, XGBoost, CNN และ CNN–BiLSTM** และนำโมเดลไปใช้กับโปรแกรมต้นแบบสำหรับเปิดดูสัญญาณและผลการจำแนก
 
-ดูวิธีใช้แอป Desktop ที่ [program/README.md](program/README.md)
+ระบบวิเคราะห์ทีละจังหวะการเต้นของหัวใจ หรือ heartbeat แล้วจัดเป็นกลุ่ม **N, S, V หรือ F** เป้าหมายของการทดลองคือศึกษาว่าแต่ละโมเดลจำแนกได้ดีเพียงใด โดยเฉพาะเมื่อทดสอบกับข้อมูลของผู้ป่วยที่โมเดลไม่เคยเห็นระหว่างฝึก
 
-## Environment
+## แนวคิดของโครงงาน
 
-ติดตั้ง Python และ PyTorch ที่รองรับเครื่อง แล้วติดตั้ง dependencies:
+สัญญาณ ECG มีทั้งข้อมูลรูปร่างคลื่นและระยะเวลาระหว่างการเต้น ซึ่งนำมาใช้ประกอบการจำแนกประเภทของ heartbeat ได้ โครงงานจึงเปรียบเทียบสองแนวทาง คือการสร้างคุณลักษณะของสัญญาณให้โมเดลเรียนรู้ และการให้โมเดลเรียนรู้จากรูปคลื่นโดยตรงร่วมกับข้อมูลจังหวะการเต้น
+
+นอกจากการฝึกโมเดลแล้ว ยังมีโปรแกรมแสดงกราฟ ECG และผลทำนายรายจังหวะ เพื่อให้ตรวจดูและเปรียบเทียบผลกับคำกำกับในชุดข้อมูลได้สะดวกขึ้น
+
+## ข้อมูลที่ใช้
+
+ใช้ชุดข้อมูล **MIT-BIH Arrhythmia Database** โดยเลือกสัญญาณ lead **MLII** ที่ความถี่สุ่ม 360 Hz ตัด records ที่มีเครื่องกระตุ้นหัวใจ (pacemaker) หมายเลข 102, 104, 107 และ 217 ออก เหลือ **44 records** สำหรับการเตรียมข้อมูล
+
+ประเภทการเต้นที่นำมาศึกษามี 4 กลุ่มดังนี้
+
+| คลาส | ชื่อกลุ่ม | ความหมายโดยย่อ |
+|---|---|---|
+| **N** | Non-ectopic beats | รวมการเต้นปกติ การเต้นที่มี bundle branch block และ escape beat บางชนิด |
+| **S** | Supraventricular ectopic beats | การเต้นผิดจังหวะที่มีต้นกำเนิดเหนือหัวใจห้องล่าง |
+| **V** | Ventricular ectopic beats | การเต้นที่มีต้นกำเนิดจากหัวใจห้องล่าง เช่น ventricular premature beat |
+| **F** | Fusion beats | การเต้นแบบผสมระหว่างจังหวะปกติกับจังหวะจากหัวใจห้องล่าง |
+
+คลาส Q ซึ่งรวม paced beats และจังหวะที่ระบุประเภทไม่ได้ อยู่นอกขอบเขตการจำแนกครั้งนี้ ส่วนคลาส N เป็นชื่อกลุ่มที่รวมหลายประเภท จึงไม่ได้หมายความว่าผู้ป่วยหรือ ECG ทั้งรายการเป็นปกติ
+
+## ขั้นตอนการทำงาน
+
+**ข้อมูล ECG → เตรียมและแบ่งข้อมูล → กรองสัญญาณ → ตัดราย heartbeat → ฝึกโมเดล → เปรียบเทียบผล → แสดงผลในโปรแกรม**
+
+1. **ตรวจสอบและแบ่งข้อมูล** — อ่านสัญญาณและคำกำกับประเภทการเต้น (annotation) แล้วแบ่งเป็น Train, Validation และ Test โดยผู้ป่วยไม่ซ้ำกันระหว่างชุด ทุกโมเดลใช้ข้อมูลแบ่งชุดเดียวกัน
+2. **ลดสัญญาณรบกวน** — ใช้ Median filter เพื่อลบการเลื่อนของเส้นฐาน ตามด้วย Low-pass filter ที่ 35 Hz
+3. **ตัดสัญญาณราย heartbeat** — ใช้ตำแหน่งจาก annotation ตัดช่วงก่อน 90 จุดและหลัง 180 จุด รวม 271 จุดต่อจังหวะ จากนั้นปรับขนาดสัญญาณทั้งแบบอ้างอิงทั้ง record และแบบ Z-score รายจังหวะ
+4. **เตรียมข้อมูลเข้าโมเดล** — Random Forest และ XGBoost ใช้คุณลักษณะ 169 ค่า เช่น รูปร่างคลื่น ค่าสถิติ Wavelet และช่วงเวลาระหว่างการเต้น (RR intervals) ส่วน CNN และ CNN–BiLSTM ใช้รูปคลื่นสองรูปแบบขนาด 2 × 271 ร่วมกับข้อมูล RR
+5. **ฝึกและปรับโมเดล** — ทดลองค่าพารามิเตอร์ด้วย Optuna แล้วเลือกค่าจากผลบน Validation ก่อนฝึกโมเดลสุดท้ายและประเมินบน Test
+6. **นำไปแสดงผล** — ส่งออกโมเดลพร้อมขั้นตอนเตรียมข้อมูล เพื่อให้โปรแกรมใช้วิธีประมวลผลเดียวกับตอนทดลอง
+
+## การออกแบบการทดลองและการประเมินผล
+
+กำหนดชุด Test ไว้ล่วงหน้า และแบ่งข้อมูลส่วนที่เหลือเป็น Train กับ Validation โดยแยกตามผู้ป่วย การเลือกพารามิเตอร์ใช้ **Validation Macro-F1** ภายใต้งบ 20 trials ต่อโมเดล ซึ่งรวม baseline และมีการทดลองปรับน้ำหนักของแต่ละคลาสเพื่อรับมือกับข้อมูลที่มีจำนวนไม่เท่ากัน
+
+ตามการตั้งค่าปัจจุบัน เมื่อเลือกพารามิเตอร์และจำนวนรอบฝึกได้แล้ว จะฝึกใหม่บน Train + Validation และเรียนรู้ค่าที่ใช้เติมข้อมูลหรือปรับสเกลใหม่จากชุดนี้ โดยไม่ใช้ Test ในขั้นตอนดังกล่าว
+
+ตัวชี้วัดหลักคือ **Macro-F1** ซึ่งเฉลี่ย F1 ของแต่ละคลาสโดยให้น้ำหนักเท่ากัน พร้อมรายงาน Accuracy, Precision, Recall และ F1 รายคลาส รวมถึง Confusion Matrix เพื่อดูว่าโมเดลสับสนระหว่างกลุ่มใด ผลเปรียบเทียบดูได้ใน [notebook 9](model/9_Evaluation_comparison.ipynb) และไฟล์ที่สร้างใน `model/reports/`
+
+การจัดอันดับโมเดลในโปรเจกต์ใช้ Test Macro-F1 หากนำอันดับนี้ไปเลือกโมเดลผู้ชนะ คะแนน Test เดิมจะเป็นผลประกอบการเลือก ไม่ใช่ผลประเมินอิสระหลังเลือกโมเดล
+
+## ไฟล์สำคัญและลำดับการรัน
+
+| ลำดับ | Notebook | หน้าที่ |
+|---|---|---|
+| 1 | [Processing data](dataset/1_Processing_data.ipynb) | ตรวจข้อมูลและจัดกลุ่ม label |
+| 2 | [Data split](dataset/2_Data_split.ipynb) | แบ่ง Train / Validation / Test ตามผู้ป่วย |
+| 3 | [Preprocessing](dataset/3_Preprocessing.ipynb) | กรองสัญญาณ ตัด heartbeat และปรับขนาดสัญญาณ |
+| 4 | [Feature engineering](dataset/4_Feature_engineering.ipynb) | สร้างคุณลักษณะสำหรับฝึกโมเดล |
+| 5 | [Random Forest](model/5_Random_forest.ipynb) | ฝึกและปรับ Random Forest |
+| 6 | [XGBoost](model/6_XGBoost.ipynb) | ฝึกและปรับ XGBoost |
+| 7 | [CNN](model/7_CNN.ipynb) | ฝึกและปรับ CNN |
+| 8 | [CNN–BiLSTM](model/8_CNN_BiLSTM.ipynb) | ฝึกและปรับ CNN–BiLSTM |
+| 9 | [Evaluation comparison](model/9_Evaluation_comparison.ipynb) | ประเมินและเปรียบเทียบทั้ง 4 โมเดล |
+| 10 | [Export model](model/10_Export_model.ipynb) | ส่งออกโมเดลสำหรับโปรแกรมต้นแบบ |
+
+ข้อมูลที่เตรียมแล้วเก็บใน `dataset/processed/` โมเดลและไฟล์ประกอบเก็บใน `model/artifacts/` ส่วนโค้ดโปรแกรมอยู่ใน `program/` โดย [app.py](program/app.py) เป็นหน้าต่างแสดงผล และ [inference.py](program/inference.py) ทำหน้าที่เตรียมสัญญาณและเรียกโมเดลทำนาย
+
+## วิธีเริ่มใช้งาน
+
+เปิด Terminal ที่โฟลเดอร์หลักของโปรเจกต์ ใช้ Python environment ที่ติดตั้ง PyTorch ได้ และติดตั้งไลบรารีที่จำเป็น
 
 ```powershell
-conda activate pattern
 python -m pip install -r requirements.txt
-python -m ipykernel install --user --name cortex --display-name "Python (Cortex)"
-jupyter lab
 ```
 
-เลือก kernel ที่ติดตั้ง dependencies แล้ว และตั้ง `raw_directory` ใน `benchmark_config.json` ให้ชี้ไปยัง local MIT-BIH directory ที่มี `RECORDS` และ WFDB files
+หากใช้ environment เดิมของโปรเจกต์ ให้เรียก `conda activate pattern` ก่อนรันคำสั่ง
 
-## Notebook workflow
+**สำหรับรันการทดลอง**
 
-| ลำดับ | ไฟล์ | หน้าที่ |
-|---|---|---|
-| 1 | `dataset/1_Processing_data.ipynb` | Audit 44 nonpacemaker records และ mapping N/S/V/F |
-| 2 | `dataset/2_Data_split.ipynb` | Fixed Test cohort และ Train/Validation ที่ไม่ซ้ำผู้ป่วย |
-| 3 | `dataset/3_Preprocessing.ipynb` | MLII 360 Hz, baseline removal, low-pass 35 Hz, waveform 2 × 271 |
-| 4 | `dataset/4_Feature_engineering.ipynb` | Tabular features 169 ค่า และ RR context |
-| 5–8 | `model/5_Random_forest.ipynb` ถึง `model/8_CNN_BiLSTM.ipynb` | Baseline, Optuna, เลือกบน Validation และ final refit |
-| 9 | `model/9_Evaluation_comparison.ipynb` | ประเมิน 4 โมเดลบน Test และบันทึก checkpoint snapshots |
-| 10 | `model/10_Export_model.ipynb` | Export ทั้ง 4 โมเดลพร้อม fitted transforms และ catalog เรียง Test Macro-F1 |
-
-Hyperparameters/checkpoints เลือกด้วย Validation Macro-F1 จากนั้นค่าเริ่มต้น refit บน Train + Validation โดยใช้ epochs/rounds ที่เลือกไว้ และ fit transforms ใหม่บน development เมื่อปิด `REFIT_ON_DEVELOPMENT` จะใช้โมเดล Train ที่เลือกจาก Validation แทน
-
-Notebook 9 เปรียบเทียบ Test Macro-F1 เพื่อจัดอันดับผู้ชนะ จึงไม่ควรใช้ Test score ของผู้ชนะเป็นการประเมินอิสระหลังเลือกโมเดล ข้อมูลข้าม notebook ส่งผ่านไฟล์ใน `dataset/processed/`, `model/artifacts/` และ `model/reports/`
-
-## Export และ application
-
-**ผล notebook 9 รุ่นเก่าที่ไม่มี `artifact_snapshots` ต้องรัน notebook 9 ใหม่ก่อน notebook 10** เพื่อผูกผลประเมินเข้ากับ checkpoint และ transforms ที่ใช้จริง ไม่ต้องฝึกใหม่หาก final artifacts และข้อมูลยังตรงกัน
-
-Notebook 10 ตรวจ hash ของโมเดลและ preprocessing แล้วสร้าง `model/artifacts/exported/` เป็น catalog พร้อม bundle version 2 แยกโฟลเดอร์ `rf/`, `xgb/`, `cnn/`, `cnn_bilstm/` แต่ละ bundle มี model, fitted transforms, feature schema, configuration, preprocessing และ evaluation snapshot แอปไม่รองรับ bundle 5 คลาสรุ่นเก่า
+1. เตรียมข้อมูล MIT-BIH ที่มีไฟล์ `RECORDS` และไฟล์ `.hea`, `.dat`, `.atr` ของแต่ละ record
+2. แก้ `raw_directory` ใน [benchmark_config.json](benchmark_config.json) ให้ตรงกับตำแหน่งข้อมูลในเครื่อง
+3. เปิด JupyterLab ด้วยคำสั่งด้านล่าง แล้วเลือก kernel ที่มีไลบรารีครบ
+4. รัน notebook 1–4 เพื่อเตรียมข้อมูล จากนั้นรันโมเดล 5–8 ให้ครบ แล้วรัน 9–10 เพื่อประเมินและส่งออก
 
 ```powershell
-conda activate pattern
+python -m jupyterlab
+```
+
+**สำหรับเปิดโปรแกรมต้นแบบ**
+
+ต้องมีโมเดลที่ส่งออกจาก notebook 10 แล้วใน `model/artifacts/exported/` จากนั้นเปิดโปรแกรมด้วยคำสั่ง
+
+```powershell
 python program/app.py
 ```
 
-เปิดเป็นหน้าต่าง Python Desktop (Tkinter + Matplotlib) โดยตรง กด **Browse ECG** เลือก `.hea` (ต้องมี `.dat` และ `.atr` คู่กัน) และ **Browse model** เลือกโฟลเดอร์ exported เลือกโมเดลจาก **Select model** ซึ่งเรียงตาม Test Macro-F1 แล้วกด **Analyze ECG**
+เลือกไฟล์ ECG ด้วย **Browse ECG** โดยต้องมีไฟล์ `.hea`, `.dat` และ `.atr` ของ record เดียวกัน เลือกโฟลเดอร์โมเดลด้วย **Browse model** เลือกโมเดลที่ต้องการ แล้วกด **Analyze ECG**
 
-แอปแสดงกราฟ ECG, ผลทำนายและคำอธิบายของแต่ละ beat พร้อม scores ทั้ง 4 คลาส เลือก beat ด้วยปุ่มก่อนหน้า/ถัดไป เลข beat หรือคลิกบนกราฟ กรองตามคลาส ปรับช่วงเวลา เปิด true labels และดูตารางผลทั้งหมดได้ **Export CSV** ส่งออกทั้ง record ไม่ขึ้นกับตัวกรอง การวิเคราะห์ทำงานเบื้องหลัง; Cancel จะหยุดเมื่อจบขั้นตอนปัจจุบัน
+โปรแกรมแสดงกราฟและผลจำแนกราย heartbeat สามารถเลื่อนดูแต่ละจังหวะ กรองตามคลาส เปิดดู label จริง ดูตารางผลทั้งหมด และส่งออกเป็น CSV ได้ อ่านรายละเอียดเพิ่มเติมใน [คู่มือโปรแกรม](program/README.md)
 
-การประมวลผลเป็น **offline** ใช้ MLII 360 Hz และตำแหน่ง heartbeat จาก `.atr` annotations ใช้ทั้ง record และ future RR context ไม่ใช่การตรวจ R-peak หรือ streaming ตำแหน่ง Q ยังใช้ใน RR timing แต่ Q อยู่นอก 4 คลาสเป้าหมาย เมื่อเปิด true labels จะแสดง Q เป็น `outside task`
+## ขอบเขตของระบบ
 
-`program/inference.py` เก็บเฉพาะ preprocessing, model architecture และ inference ที่แอปต้องใช้ โค้ดฝึกยังอยู่ใน notebooks หากเปลี่ยนสูตรหรือ architecture ต้องปรับทั้งสองฝั่งให้ตรงกัน
+โปรแกรมนี้เป็นต้นแบบสำหรับศึกษาและสาธิตการจำแนก heartbeat จาก ECG ที่บันทึกไว้ โดยใช้ตำแหน่ง heartbeat จาก annotation และข้อมูลบริบททั้ง record รวมถึงจังหวะถัดไป จึงเป็นการวิเคราะห์แบบ **ออฟไลน์** ยังไม่ได้ตรวจหาตำแหน่ง heartbeat เองหรือรับสัญญาณแบบเรียลไทม์
 
-## ตรวจสอบ export / application
+ผลการทดลองสะท้อนประสิทธิภาพบนชุดข้อมูลและเงื่อนไขที่กำหนด ยังไม่ได้ยืนยันประสิทธิภาพในการใช้งานทางคลินิก ผลทำนายและคำอธิบายในโปรแกรมมีไว้ประกอบการศึกษาและตรวจทาน
 
-```powershell
-python -m pip install pytest
-python -m pytest tests/test_model_catalog.py tests/test_desktop_application.py tests/test_benchmark_application.py tests/test_reporting_visualizations.py -q
-```
-
-ชุดทดสอบนี้ใช้ข้อมูลสังเคราะห์ ตรวจ preprocessing parity กับ notebook, export/load/predict ทั้ง 4 โมเดล, hash rejection และ Desktop UI, background worker, cancellation และ CSV รวมถึง Q labels โดยไม่ฝึก benchmark จริง ทั้งนี้ tests รุ่นเดิมบางไฟล์ยังอ้างถึง notebook/protocol 5 คลาสก่อนปรับโครงสร้าง
